@@ -436,7 +436,7 @@ function home() {
     }),
     h('footer', { class: 'foot' },
       h('p', { class: 'credit' }, 'Built by ', h('b', {}, 'Zaid Altal'), ' for CS116 Computing Fundamentals students at the German Jordanian University (GJU). Not an official GJU resource.'),
-      h('p', {}, 'Every code example and expected output in this trainer was compiled and run with gcc. Progress is stored only in this browser. Visits are counted anonymously with GoatCounter (no cookies, no personal data).'),
+      h('p', {}, 'Every code example and expected output in this trainer was compiled and run with gcc. Progress is stored only in this browser.'),
       h('button', { class: 'linkbtn', type: 'button', onclick: () => { if (confirm('Reset all progress, XP and mistakes?')) { localStorage.removeItem(KEY); S = load(); route(); } } }, 'Reset progress'))));
 }
 const stat = (v, l) => h('div', { class: 'stat' }, h('b', {}, v), h('span', {}, l));
