@@ -280,21 +280,20 @@ printf("%d %d", x, y);`, a: '2 7', x: 'x++ hands over the old 1; a[1][2] is row 
 
 // ═══════════════════════════════════════ Mock exam (deck slides 55–60) ═══════════════════════════════════════
 CS116.mockExam([
-  { t: 'mcq', q: 'Q1. C was developed by', o: [['Dennis Ritchie', 'Correct: 1972.'], ['Bjarne Stroustrup', 'C++.'], ['James Gosling', 'Java.'], ['Guido van Rossum', 'Python.']], a: 0 },
-  { t: 'mcq', q: 'Q2. Which is a valid name?', o: [['_total3', 'Correct: no leading digit, no $, not a keyword.'], ['3total', 'Starts with a digit.'], ['total$', '$ is not allowed.'], ['int', 'Keyword.']], a: 0 },
-  { t: 'mcq', q: 'Q3. NOT allowed as a case label', o: [['2.5', 'Correct: floats cannot be case labels.'], ['5', 'An int constant is fine.'], ["'x'", 'A char constant is fine.'], ['3+1', 'A constant expression is fine.']], a: 0 },
-  { t: 'mcq', q: "Q4. ASCII value of 'a'", o: [['97', "Correct: 'A' is 65, lowercase is +32."], ['65', "That is 'A'."], ['48', "That is '0'."], ['32', 'That is the difference between upper and lower case.']], a: 0 },
-  { t: 'mcq', q: 'Q5. Always runs its body at least once', o: [['do-while', 'Correct: the check is at the end.'], ['for', 'for checks first.'], ['while', 'while checks first.'], ['none', 'do-while does.']], a: 0 },
-  { t: 'mcq', q: 'Q6. int a[8]: last valid index', o: [['7', 'Correct: size − 1.'], ['8', 'a[8] is out of bounds.'], ['9', 'Out of bounds.'], ['1', 'The first index is 0.']], a: 0 },
-  { t: 'mcq', q: 'Q7. Format specifier for a char', o: [['%c', 'Correct.'], ['%d', 'int.'], ['%f', 'float.'], ['%s', 'string.']], a: 0 },
-  { t: 'out', q: 'Q8. Output?', code: R`printf("%d",
+  { t: 'mcq', q: 'Q1. Which is a valid name?', o: [['_total3', 'Correct: no leading digit, no $, not a keyword.'], ['3total', 'Starts with a digit.'], ['total$', '$ is not allowed.'], ['int', 'Keyword.']], a: 0 },
+  { t: 'mcq', q: 'Q2. NOT allowed as a case label', o: [['2.5', 'Correct: floats cannot be case labels.'], ['5', 'An int constant is fine.'], ["'x'", 'A char constant is fine.'], ['3+1', 'A constant expression is fine.']], a: 0 },
+  { t: 'mcq', q: "Q3. ASCII value of 'a'", o: [['97', "Correct: 'A' is 65, lowercase is +32."], ['65', "That is 'A'."], ['48', "That is '0'."], ['32', 'That is the difference between upper and lower case.']], a: 0 },
+  { t: 'mcq', q: 'Q4. Always runs its body at least once', o: [['do-while', 'Correct: the check is at the end.'], ['for', 'for checks first.'], ['while', 'while checks first.'], ['none', 'do-while does.']], a: 0 },
+  { t: 'mcq', q: 'Q5. int a[8]: last valid index', o: [['7', 'Correct: size − 1.'], ['8', 'a[8] is out of bounds.'], ['9', 'Out of bounds.'], ['1', 'The first index is 0.']], a: 0 },
+  { t: 'mcq', q: 'Q6. Format specifier for a char', o: [['%c', 'Correct.'], ['%d', 'int.'], ['%f', 'float.'], ['%s', 'string.']], a: 0 },
+  { t: 'out', q: 'Q7. Output?', code: R`printf("%d",
   17 % 5 * 2 + 9 / 2);`, a: '8', x: '17%5 = 2, 2*2 = 4; 9/2 = 4; 4 + 4 = 8.' },
-  { t: 'out', q: 'Q9. Output?', code: R`float f = 9 / 2;
+  { t: 'out', q: 'Q8. Output?', code: R`float f = 9 / 2;
 printf("%.1f", f);`, a: '4.0', x: '9/2 = 4 as ints, then stored as 4.0.', w: { '4.5': '9 / 2 is int ÷ int = 4 BEFORE it is stored.' } },
-  { t: 'out', q: 'Q10. Output?', code: R`int k = 10, j = 20;
+  { t: 'out', q: 'Q9. Output?', code: R`int k = 10, j = 20;
 printf("%d", k > 5 &&
   j < 10 || !(k == 3));`, a: '1', x: '(1 && 0) = 0; !(0) = 1; 0 || 1 = 1.' },
-  { t: 'out', q: 'Q11. Output?', code: R`char g = 'b';
+  { t: 'out', q: 'Q10. Output?', code: R`char g = 'b';
 switch (g) {
  case 'a': printf("A");
  case 'b': printf("B");
@@ -302,42 +301,42 @@ switch (g) {
    break;
  default: printf("X");
 }`, a: 'BC', trace: 'switchmock', x: "Jumps to 'b', no break → falls into 'c', then break.", w: { 'B': "No break after case 'b'.", 'ABC': "It jumps straight to 'b'." } },
-  { t: 'num', q: 'Q12. How many lines are printed?', code: R`for (i = 3; i <= 15;
+  { t: 'num', q: 'Q11. How many lines are printed?', code: R`for (i = 3; i <= 15;
      i += 4)
   printf("Hi\n");`, a: 4, x: 'i = 3, 7, 11, 15; then 19 fails.', pre: 'int i;', run: { expect: 'Hi\nHi\nHi\nHi' } },
-  { t: 'out', q: 'Q13. Output?', code: R`int i = 1;
+  { t: 'out', q: 'Q12. Output?', code: R`int i = 1;
 do {
   printf("%d", i);
   i *= 3;
 } while (i < 20);`, a: '139', trace: 'mock13', x: 'Prints 1, 3, 9; then i = 27 fails (no spaces!).', w: { '1 3 9': 'There are no spaces in the format string.', '13927': '27 < 20 fails before it can print.' } },
-  { t: 'out', q: 'Q14. Output?', code: R`for (i = 1; i <= 3; i++) {
+  { t: 'out', q: 'Q13. Output?', code: R`for (i = 1; i <= 3; i++) {
   for (j = i; j <= 3; j++)
     printf("%d", j);
   printf("\n");
 }`, pre: 'int i, j;', a: '123\n23\n3', trace: 'mock14', x: 'The inner loop starts at i: three lines.' },
-  { t: 'out', q: 'Q15. Output?', code: R`int x = 5, y;
+  { t: 'out', q: 'Q14. Output?', code: R`int x = 5, y;
 y = x++ * 2;
 printf("%d %d", x, y);`, a: '6 10', trace: 'mock15', x: 'Uses the old x (5) × 2 = 10, then x → 6.', w: { '6 12': 'x++ hands over the OLD 5.' } },
-  { t: 'out', q: 'Q16. Output?', code: R`int s = 0;
+  { t: 'out', q: 'Q15. Output?', code: R`int s = 0;
 for (i = 1; i <= 6; i++) {
   if (i == 2) continue;
   if (i == 5) break;
   s += i;
 }
 printf("%d", s);`, pre: 'int i;', a: '8', trace: 'mock16', x: '1 + 3 + 4 (2 skipped, stops at 5).' },
-  { t: 'out', q: 'Q17. Output?', code: R`int a[6] = {3, 8, 1, 9, 4};
+  { t: 'out', q: 'Q16. Output?', code: R`int a[6] = {3, 8, 1, 9, 4};
 printf("%d %d",
   a[1] + a[3], a[5]);`, a: '17 0', x: '8 + 9; a[5] was never given → 0.' },
-  { t: 'out', q: 'Q18. Output?', code: R`int m[3][3], s = 0;
+  { t: 'out', q: 'Q17. Output?', code: R`int m[3][3], s = 0;
 for (i = 0; i < 3; i++)
   for (j = 0; j < 3; j++)
     m[i][j] = i + j;
 for (i = 0; i < 3; i++)
   s += m[i][i];
 printf("%d %d", m[2][1], s);`, pre: 'int i, j;', a: '3 6', trace: 'mock18', x: 'm[2][1] = 2+1; diagonal 0 + 2 + 4.' },
-  { t: 'fill', q: 'Q19. Fill the blanks to print int a[5] backwards.', code: R`for (i = [[0]]; i [[1]] 0; i--)
+  { t: 'fill', q: 'Q18. Fill the blanks to print int a[5] backwards.', code: R`for (i = [[0]]; i [[1]] 0; i--)
   printf("%d ", a[i]);`, b: [['4'], ['>=']], pre: 'int a[5] = {1, 2, 3, 4, 5}, i;', run: { expect: '5 4 3 2 1' }, x: 'Start at the last index, include index 0.' },
-  { t: 'out', q: 'Q20. Output?', code: R`int n = 1234, s = 0;
+  { t: 'out', q: 'Q19. Output?', code: R`int n = 1234, s = 0;
 while (n) {
   s += n % 10;
   n /= 10;

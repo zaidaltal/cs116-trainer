@@ -7,7 +7,7 @@ CS116.unit({
   lessons: [
 
   // ───────────────────────────────────────── 1.1
-  { id: 'u1-first', title: 'Your first program & C facts', slides: '4', mins: 4, items: [
+  { id: 'u1-first', title: 'Your first program', slides: '4', mins: 3, items: [
     { t: 'learn', h: 'Anatomy of a C program',
       code: R`#include <stdio.h>
 int main(void)
@@ -31,20 +31,11 @@ int main(void)
           ['To start the program', 'The program starts at main, not at #include.'],
           ['To declare variables', 'Variables are declared with types like int, not with #include.'],
           ['It is a comment', 'Comments use /* */ or //. #include is a real instruction to the compiler.']], a: 0 },
-    { t: 'learn', h: 'The C facts they ask about',
-      table: [['Fact', 'Answer'], ['Who made C, when?', 'Dennis Ritchie, 1972'], ['ANSI standard', '1983 (ANSI C)'],
-              ['ISO adopted', '1990 (C90)'], ['Last major changes', '1999'], ['Level', '"mid-level" (close to hardware)'],
-              ['Native language of', 'UNIX, Linux, BSD'], ['Every statement ends with', '; (comments don\'t)'],
+    { t: 'learn', h: 'C rules that affect your code',
+      table: [['Fact', 'Answer'], ['Level', '"mid-level" (close to hardware)'],
+              ['Every statement ends with', '; (comments don\'t)'],
               ['Case sensitive?', 'Yes: x and X differ'], ['Comments', '/* … */ or // …']],
       p: 'Language levels, top to bottom: **scripting** (Python) → **mid/high** (C, C++) → **assembly** (MOV EAX, 5) → **machine** (binary) → hardware.' },
-    { t: 'mcq', q: 'Who developed C, and when?',
-      o: [['Dennis Ritchie, 1972', 'Correct.'],
-          ['Bjarne Stroustrup, 1983', 'Stroustrup created C++, not C.'],
-          ['Dennis Ritchie, 1983', 'Right person, wrong year: 1983 is the ANSI standard.'],
-          ['James Gosling, 1995', 'Gosling created Java.']], a: 0 },
-    { t: 'mcq', q: 'In which year was C standardised by ANSI?',
-      o: [['1983', 'Correct: ANSI C.'], ['1972', '1972 is when Ritchie created C.'],
-          ['1990', '1990 is when ISO adopted it (C90).'], ['1999', '1999 is the last major change.']], a: 0 },
     { t: 'mcq', q: 'C is usually described as a…',
       o: [['mid-level language', 'Correct: high-level syntax, but close to the hardware.'],
           ['scripting language', 'Scripting languages are higher, like Python.'],
@@ -59,9 +50,6 @@ int main(void)
       o: [['Two different variables are created', 'Correct. C is case sensitive: x and X are different names.'],
           ['Error: x is declared twice', 'x and X are not the same name, because C is case sensitive.'],
           ['X overwrites x, so both are 2', 'They are separate boxes in memory.']], a: 0 },
-    { t: 'mcq', q: 'C is the native language of which operating systems?',
-      o: [['UNIX, Linux, BSD', 'Correct.'], ['Only Windows', 'The deck lists UNIX, Linux and BSD.'],
-          ['Android apps only', 'Not what the lecture says.']], a: 0 },
   ]},
 
   // ───────────────────────────────────────── 1.2

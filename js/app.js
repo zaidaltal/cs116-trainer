@@ -616,12 +616,12 @@ function mockView() {
     h('h1', {}, 'Timed mock exam'),
     h('p', { class: 'lead' }, 'No feedback until you submit, just like the real thing. Every wrong answer goes into your Mistakes deck.'),
     h('div', { class: 'mock-cards' },
-      h('a', { class: 'tool big', href: '#/mock/deck' }, h('b', {}, 'Deck mock exam'), h('span', {}, '20 questions from slides 55–58 · 30 minutes · 1 mark each'), h('span', { class: 'arrow' }, '→')),
+      h('a', { class: 'tool big', href: '#/mock/deck' }, h('b', {}, 'Deck mock exam'), h('span', {}, '19 questions from slides 55–58 · 30 minutes · 1 mark each'), h('span', { class: 'arrow' }, '→')),
       h('a', { class: 'tool big', href: '#/mock/past' }, h('b', {}, 'Past-paper exam'), h('span', {}, '25 real questions from previous CS116 online quizzes · 25 minutes'), h('span', { class: 'arrow' }, '→')),
       h('a', { class: 'tool big', href: '#/mock/mixed' }, h('b', {}, 'Mixed mock exam'), h('span', {}, '25 questions from every unit, weighted towards your weak spots · 40 minutes'), h('span', { class: 'arrow' }, '→'))),
     S.mocks.length ? h('section', { class: 'mgroup' }, h('h2', {}, 'Past attempts'),
       h('ul', { class: 'mlist' }, S.mocks.slice().reverse().slice(0, 10).map(m => h('li', {}, h('span', {}, `${({ deck: 'Deck', past: 'Past paper', mixed: 'Mixed' })[m.mode] || 'Mixed'} · ${new Date(m.at).toLocaleString()}`), h('b', {}, `${m.score}/${m.total}`))))) : null,
-    h('p', { class: 'muted' }, 'Deck scoring: 18–20 ready · 15–17 redo the traps · under 15 redo the drills of your weak part.')));
+    h('p', { class: 'muted' }, 'Deck scoring: 17–19 ready · 14–16 redo the traps · under 14 redo the drills of your weak part.')));
 }
 function pickMixed() {
   const pool = LESSONS.flatMap(l => l.items.filter(isQ).map(it => ({ it, w: l.weak ? 2 : 1, u: l.unit.id })));
@@ -687,7 +687,7 @@ function runMock(mode) {
     head.remove(); foot.innerHTML = ''; main.innerHTML = '';
     $app.prepend(topbar(true));
     const pct = Math.round(score / items.length * 100);
-    const verdict = mode === 'deck' ? (score >= 18 ? 'Ready.' : score >= 15 ? 'Close: redo the traps lessons (5.2, 5.3).' : 'Redo the drills of your weak parts, then try again.') : (pct >= 85 ? 'Strong result.' : pct >= 70 ? 'Good, now clear your Mistakes deck.' : 'Review your Mistakes deck, then retake.');
+    const verdict = mode === 'deck' ? (score >= 17 ? 'Ready.' : score >= 14 ? 'Close: redo the traps lessons (5.2, 5.3).' : 'Redo the drills of your weak parts, then try again.') : (pct >= 85 ? 'Strong result.' : pct >= 70 ? 'Good, now clear your Mistakes deck.' : 'Review your Mistakes deck, then retake.');
     main.append(h('section', { class: 'card done-card' },
       h('h1', {}, `${score} / ${items.length}`), h('p', { class: 'lead' }, (timeUp ? 'Time is up. ' : '') + verdict),
       h('div', { class: 'done-stats' }, stat(pct + '%', 'score'), stat(items.length - score, 'to review'))),
