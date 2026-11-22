@@ -1,0 +1,514 @@
+//@id intdiv
+//@title int ÷ int stored in a float
+//@watch x:d y:d f:f
+//@uninit f
+//@expect 3 1\n3.000000\n3.50\n
+int x = 7, y = 2;
+float f;
+printf("%d %d\n", x/y, x%y);«S();»
+f = x / y;«N("x / y is int ÷ int = 3 (decimals chopped). Only THEN is 3 stored in f, giving 3.0");»
+printf("%f\n", f);«S();»
+f = (float) x / y;«N("(float) x turns 7 into 7.0 first, so 7.0 / 2 = 3.5");»
+printf("%.2f\n", f);«S();»
+
+//@id ifassign
+//@title if (a = 0): assignment, not comparison
+//@watch a:d
+//@expect B0
+int a = 5;«S();»
+if («C(»a = 0«)»)
+  printf("A")«, S()»;
+else
+  printf("B")«, S()»;
+printf("%d", a);«S();»
+
+//@id ifassign5
+//@title if (x = 10) is always true
+//@watch x:d
+//@expect ten 10
+int x = 5;«S();»
+if («C(»x = 10«)»)
+  printf("ten ")«, S()»;
+printf("%d", x);«S();»
+
+//@id switchfall
+//@title switch with a missing break
+//@watch n:d
+//@expect two three
+int n = 2;«S();»
+switch («V(»n«)») {
+  case 1: printf("one ");«N("no break: would fall into case 2");»
+  case 2: printf("two ");«N("no break here, so it falls into case 3 WITHOUT checking its label");»
+  case 3: printf("three ");«S();»
+    «N("break: jump out of the switch");»break;
+  default: printf("other");«S();»
+}
+
+//@id switchgrade
+//@title switch: shared cases
+//@watch grade:c
+//@expect Well done\nYour grade is B\n
+char grade = 'B';«S();»
+switch («V(»grade«)»)
+{
+  case 'A':
+    printf("Excellent!\n");«S();»
+    break;
+  case 'B':
+  case 'C':
+    printf("Well done\n");«S();»
+    «N("break: jump out of the switch");»break;
+  default:
+    printf("Invalid grade\n");«S();»
+}
+printf("Your grade is %c\n", grade);«S();»
+
+//@id switchmod
+//@title switch on an expression
+//@watch num:d
+//@expect Case1: 2
+int num = 2;«S();»
+switch («V(»(num + 2) % 3«)») {
+  case 1: printf("Case1: %d", num);«S();»
+    «N("break: jump out of the switch");»break;
+  case 2: printf("Case2: %d", num);«S();»
+    break;
+  default: printf("Default: %d", num);«S();»
+}
+
+//@id switchmock
+//@title switch on a char, no break
+//@watch g:c
+//@expect BC
+char g = 'b';«S();»
+switch («V(»g«)») {
+ case 'a': printf("A");«S();»
+ case 'b': printf("B");«N("no break, so it falls into case 'c'");»
+ case 'c': printf("C");«S();»
+   «N("break: jump out of the switch");»break;
+ default: printf("X");«S();»
+}
+
+//@id gcd
+//@title while: GCD (Euclid)
+//@watch u:d v:d temp:d
+//@uninit u v temp
+//@stdin 150 35
+//@expect GCD is 5\n
+int u, v, temp;
+scanf("%i%i", &u, &v);«S();»  // 150 35
+while («C(»v != 0«)»)
+{
+  temp = u % v;«S();»
+  u = v;«S();»
+  v = temp;«S();»
+}
+printf("GCD is %i\n", u);«S();»
+
+//@id dowhile
+//@title do-while runs at least once
+//@watch a:d
+//@expect value of a: 21\n
+int a = 21;«S();»
+do
+{
+  printf("value of a: %d\n", a);«S();»
+  a = a + 1;«S();»
+}
+while («C(»a < 20«)»);
+
+//@id reverse
+//@title do-while: reverse the digits
+//@watch number:d right_digit:d
+//@uninit right_digit
+//@expect 97531
+int number = 13579, right_digit;«S();»
+do {
+  right_digit = number % 10;«S();»
+  printf("%i", right_digit);«S();»
+  number = number / 10;«S();»
+} while («C(»number != 0«)»);
+
+//@id forbasic
+//@title for: the order of the 3 parts
+//@watch i:d
+//@uninit i
+//@expect 1 2 3 \nafter the loop i = 4
+int i;
+for («E(»i = 1«)»; «C(»i <= 3«)»; «E(»i++«)»)
+  printf("%d ", i)«, S()»;
+printf("\nafter the loop i = %d", i);«S();»
+
+//@id forsum
+//@title Trace table: i += 2
+//@watch i:d s:d
+//@uninit i
+//@expect 5 10
+int i, s = 0;
+for («E(»i = 1«)»; «C(»i <= 4«)»; «E(»i += 2«)»)
+  s = s + i * i«, S()»;
+printf("%d %d", i, s);«S();»
+
+//@id while3
+//@title while: i += 3
+//@watch i:d
+//@expect 12
+int i = 0;«S();»
+while («C(»i < 10«)»)
+{
+  i += 3;«S();»
+}
+printf("%d", i);«S();»
+
+//@id forsemi
+//@title The stray semicolon
+//@watch i:d
+//@uninit i
+//@expect 5
+int i;
+for («E(»i = 0«)»; «C(»i < 5«)»; «E(»i++«)»);
+printf("%d", i);«S();»
+
+//@id halve
+//@title do-while with n /= 2
+//@watch n:d
+//@expect 20 10 5 2 1
+int n = 20;«S();»
+do {
+  printf("%d ", n);«S();»
+  n /= 2;«S();»
+} while («C(»n > 0«)»);
+
+//@id ascii
+//@title Looping over chars
+//@watch c:c
+//@uninit c
+//@expect A\tB\tC\tD\tE\t
+char c;
+for («E(»c = 'A'«)»; «C(»c <= 'E'«)»; «E(»c++«)»)
+  printf("%c\t", c)«, S()»;
+
+//@id nestcount
+//@title Nested loops multiply
+//@watch i:d j:d count:d
+//@uninit i j
+//@expect 12
+int i, j, count = 0;
+for («E(»i = 1«)»; «C(»i <= 3«)»; «E(»i++«)»)
+  for («E(»j = 1«)»; «C(»j <= 4«)»; «E(»j++«)»)
+    count++«, S()»;
+printf("%d", count);«S();»
+
+//@id nestrect
+//@title Nested loops: 3 rows × 4 stars
+//@watch i:d j:d
+//@uninit i j
+//@expect ****\n****\n****\n
+int i, j;
+for («E(»i = 1«)»; «C(»i <= 3«)»; «E(»i++«)»)      // rows
+{
+  for («E(»j = 1«)»; «C(»j <= 4«)»; «E(»j++«)»)  // columns
+    printf("*")«, S()»;
+  printf("\n");«S();»  // after each row
+}
+
+//@id nestpairs
+//@title Nested loops: print i and j
+//@watch i:d j:d
+//@uninit i j
+//@expect 1 1\n1 2\n2 1\n2 2\n3 1\n3 2\n4 1\n4 2\n
+int i, j;
+for («E(»i = 1«)»; «C(»i <= 4«)»; «E(»i++«)»)
+  for («E(»j = 1«)»; «C(»j < 3«)»; «E(»j++«)»)
+    printf("%i %i\n", i, j)«, S()»;
+
+//@id triangle
+//@title Inner limit uses i: a triangle
+//@watch i:d j:d
+//@uninit i j
+//@expect *\n**\n***\n
+int i, j;
+for («E(»i = 1«)»; «C(»i <= 3«)»; «E(»i++«)») {
+  for («E(»j = 1«)»; «C(»j <= i«)»; «E(»j++«)»)
+    printf("*")«, S()»;
+  printf("\n");«S();»
+}
+
+//@id shrink
+//@title Shrinking triangle
+//@watch row:d col:d
+//@uninit row col
+//@expect #####\n####\n###\n##\n#\n
+int n = 5, row, col;
+for («E(»row = 1«)»; «C(»row <= n«)»; «E(»row++«)») {
+  for («E(»col = 5«)»; «C(»col >= row«)»; «E(»col--«)»)
+    printf("#")«, S()»;
+  printf("\n");«S();»
+}
+
+//@id mock14
+//@title Inner loop starts at i
+//@watch i:d j:d
+//@uninit i j
+//@expect 123\n23\n3\n
+int i, j;
+for («E(»i = 1«)»; «C(»i <= 3«)»; «E(»i++«)») {
+  for («E(»j = i«)»; «C(»j <= 3«)»; «E(»j++«)»)
+    printf("%d", j)«, S()»;
+  printf("\n");«S();»
+}
+
+//@id postpre
+//@title x++ vs ++x
+//@watch x:d y:d
+//@uninit y
+//@expect
+int x = 5, y;«S();»
+y = x++;«N("x++ hands the OLD x (5) to y, then x becomes 6");»
+x = 5;«S();»
+y = ++x;«N("++x adds 1 first (x = 6), then hands the NEW value 6 to y");»
+
+//@id weakinc
+//@title j = i++ + 2
+//@watch i:d j:d
+//@uninit j
+//@expect i = 6, j = 7
+int i = 5, j;«S();»
+j = i++ + 2;«N("i++ gives the OLD value 5, so j = 5 + 2 = 7. Afterwards i becomes 6");»
+printf("i = %d, j = %d", i, j);«S();»
+
+//@id weakinc2
+//@title j = ++i + 2
+//@watch i:d j:d
+//@uninit j
+//@expect i = 6, j = 8
+int i = 5, j;«S();»
+j = ++i + 2;«N("++i adds 1 FIRST (i = 6), so j = 6 + 2 = 8");»
+printf("i = %d, j = %d", i, j);«S();»
+
+//@id incdrill
+//@title ++/-- lecture example
+//@watch q:d m:d x:d y:d z:d
+//@uninit x y z
+//@expect q++ = 1\n++q = 3\ny = 3\nx = 5\nz = 1\nq = 6\nm = -4\n
+int q = 1, m = -5, x, y, z;«S();»
+printf("q++ = %d\n", q++);«N("prints the OLD q (1), then q becomes 2");»
+printf("++q = %d\n", ++q);«N("q becomes 3 first, then 3 is printed");»
+y = q++;«N("y gets the OLD q (3), then q becomes 4");»
+x = ++q;«N("q becomes 5 first, then x gets 5");»
+z = ++m + q++;«N("++m: m becomes -4 first. q++ gives the old 5. z = -4 + 5 = 1, then q becomes 6");»
+printf("y = %d\n", y);«S();»
+printf("x = %d\n", x);«S();»
+printf("z = %d\n", z);«S();»
+printf("q = %d\n", q);«S();»
+printf("m = %d\n", m);«S();»
+
+//@id incbonus
+//@title ++ inside an expression
+//@watch a:d b:d
+//@uninit b
+//@expect 4 3\n5 10\n
+int a = 3, b;«S();»
+b = a++;«N("b gets the OLD a (3), then a becomes 4");»
+printf("%d %d\n", a, b);«S();»
+b = ++a * 2;«N("a becomes 5 first, then b = 5 * 2 = 10");»
+printf("%d %d\n", a, b);«S();»
+
+//@id mock15
+//@title y = x++ * 2
+//@watch x:d y:d
+//@uninit y
+//@expect 6 10
+int x = 5, y;«S();»
+y = x++ * 2;«N("x++ gives the OLD x (5): y = 5 * 2 = 10, then x becomes 6");»
+printf("%d %d", x, y);«S();»
+
+//@id continue
+//@title continue skips the rest of the round
+//@watch i:d sum1:d sum2:d
+//@uninit i
+//@expect 6 0
+int i, sum1 = 0, sum2 = 0;
+for («E(»i = 1«)»; «C(»i < 4«)»; «E(»i++«)») {
+  sum1 = sum1 + i;«S();»
+  «N("continue: skip the rest of this round, jump to i++");»continue;
+  sum2 = sum2 + i;«S();»
+}
+printf("%d %d", sum1, sum2);«S();»
+
+//@id break
+//@title break leaves the loop
+//@watch i:d sum1:d sum2:d
+//@uninit i
+//@expect 1 0
+int i, sum1 = 0, sum2 = 0;
+for («E(»i = 1«)»; «C(»i < 4«)»; «E(»i++«)») {
+  sum1 = sum1 + i;«S();»
+  «N("break: leave the loop completely (no i++, no more checks)");»break;
+  sum2 = sum2 + i;«S();»
+}
+printf("%d %d", sum1, sum2);«S();»
+
+//@id contbreak
+//@title continue and break together
+//@watch i:d
+//@uninit i
+//@expect 1 2 4 5 7
+int i;
+for («E(»i = 1«)»; «C(»i <= 10«)»; «E(»i++«)») {
+  if («C(»i % 3 == 0«)») «{N("continue: skip printf, jump to i++");»continue;«}»
+  if («C(»i == 8«)») «{N("break: leave the loop now");»break;«}»
+  printf("%d ", i);«S();»
+}
+
+//@id nestbreak
+//@title break in a nested loop
+//@watch i:d j:d
+//@uninit i j
+//@expect i = 1\ni = 6\ni = 11\ni = 16\n
+int i, j;
+for («E(»i = 1«)»; «C(»i < 20«)»; «E(»i = i + 5«)»)
+  for («E(»j = 1«)»; «C(»j < 4«)»; «E(»j++«)») {
+    printf("i = %d\n", i);«S();»
+    «N("break: leaves ONLY the inner j-loop. The outer loop carries on.");»break;
+    printf("j = %d\n", j);«S();»
+  }
+
+//@id while5
+//@title while (5) with break
+//@watch sum1:d
+//@expect sum1 = 7
+int sum1 = 0;«S();»
+while («C(»5«)») {
+  sum1 = sum1 + 1;«S();»
+  if («C(»sum1 == 7«)») «{N("break: leave the loop");»break;«}»
+}
+printf("sum1 = %d", sum1);«S();»
+
+//@id mock16
+//@title continue at 2, break at 5
+//@watch i:d s:d
+//@uninit i
+//@expect 8
+int i, s = 0;
+for («E(»i = 1«)»; «C(»i <= 6«)»; «E(»i++«)») {
+  if («C(»i == 2«)») «{N("continue: skip s += i, jump to i++");»continue;«}»
+  if («C(»i == 5«)») «{N("break: leave the loop");»break;«}»
+  s += i;«S();»
+}
+printf("%d", s);«S();»
+
+//@id arrvalues
+//@title Filling an array
+//@watch values:d[10]
+//@expect
+int values[10] = {0};«S();»
+values[0] = 197;«S();»
+values[2] = -100;«S();»
+values[5] = 350;«S();»
+values[3] = values[0] + values[5];«S();»
+values[9] = values[5] / 10;«S();»
+--values[2];«S();»
+
+//@id arrsum
+//@title Partial initialiser + sum
+//@watch i:d s:d arr:d[5]
+//@uninit i
+//@expect 12 0
+int arr[5] = {2, 4, 6};
+int i, s = 0;«S();»
+for («E(»i = 0«)»; «C(»i < 5«)»; «E(»i++«)»)
+  s += arr[i]«, S()»;
+printf("%d %d", s, arr[4]);«S();»
+
+//@id doubling
+//@title Each box = sum of the boxes before it
+//@watch i:d j:d numbers:d[10]
+//@uninit i j
+//@expect 1 1 2 4 8 16 32 64 128 256
+int numbers[10] = {1,0,0,0,0,0,0,0,0,0};
+int i, j;
+for («E(»i = 0«)»; «C(»i < 10«)»; «E(»++i«)»)
+  for («E(»j = 0«)»; «C(»j < i«)»; «E(»++j«)»)
+    numbers[i] += numbers[j]«, S()»;
+for (i = 0; i < 10; ++i)
+  printf("%i ", numbers[i]);
+«S();»
+
+//@id min
+//@title Finding the minimum
+//@watch num:d i:d xyz:d a:d[5]
+//@uninit num i xyz
+//@stdin 5\n55 44 22 11 99
+//@expect xyz Element : 11
+int a[5], num, i, xyz;
+scanf("%d", &num);«S();»
+for (i = 0; i < num; i++)
+  scanf("%d", &a[i]);
+«S();»
+xyz = a[0];«S();»
+for («E(»i = 0«)»; «C(»i < num«)»; «E(»i++«)»)
+  if («C(»a[i] < xyz«)»)
+    xyz = a[i]«, S()»;
+printf("xyz Element : %d", xyz);«S();»
+
+//@id grid
+//@title 2D array: a[i][j] = i * j
+//@watch i:d j:d a:d[4][4]
+//@uninit i j
+//@expect
+int a[4][4]«= {0}», i, j;
+for («E(»i = 0«)»; «C(»i < 4«)»; «E(»i++«)»)
+  for («E(»j = 0«)»; «C(»j < 4«)»; «E(»j++«)»)
+  {
+    a[i][j] = i * j;«S();»
+  }
+
+//@id mock18
+//@title 2D array: diagonal sum
+//@watch i:d j:d s:d m:d[3][3]
+//@uninit i j
+//@expect 3 6
+int m[3][3]«= {0}», s = 0, i, j;
+for («E(»i = 0«)»; «C(»i < 3«)»; «E(»i++«)»)
+  for («E(»j = 0«)»; «C(»j < 3«)»; «E(»j++«)»)
+    m[i][j] = i + j«, S()»;
+for («E(»i = 0«)»; «C(»i < 3«)»; «E(»i++«)»)
+  s += m[i][i]«, S()»;
+printf("%d %d", m[2][1], s);«S();»
+
+//@id digitsum
+//@title while (n): sum of digits
+//@watch n:d s:d
+//@expect 10
+int n = 1234, s = 0;«S();»
+while («C(»n«)») {
+  s += n % 10;«S();»
+  n /= 10;«S();»
+}
+printf("%d", s);«S();»
+
+//@id mock13
+//@title do-while with i *= 3
+//@watch i:d
+//@expect 139
+int i = 1;«S();»
+do {
+  printf("%d", i);«S();»
+  i *= 3;«S();»
+} while («C(»i < 20«)»);
+
+//@id factorial
+//@title Factorial with while
+//@watch n:d f:d
+//@uninit n
+//@stdin 5
+//@expect 120
+int n;
+long long f = 1;
+scanf("%d", &n);«S();»
+while («C(»n > 0«)») {
+  f *= n;«S();»
+  --n;«S();»
+}
+printf("%lld", f);«S();»
