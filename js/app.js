@@ -86,6 +86,39 @@ const icon = {
 };
 const ico = (name, cls = '') => h('span', { class: 'ico ' + cls, html: icon[name] });
 
+// ───────────────────────────── sound effects ─────────────────────────────
+// Synthesised with the Web Audio API (no audio files to download). Muted state is saved in S.sound.
+let actx = null;
+function sfx(kind) {
+  if (S.sound === false) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t0 = actx.currentTime + 0.01;
+    const notes = { ok: [[659.25, 0], [987.77, 0.08]], bad: [[233.08, 0], [174.61, 0.12]], done: [[523.25, 0], [659.25, 0.1], [783.99, 0.2], [1046.5, 0.3]] }[kind];
+    for (const [freq, dt] of notes) {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = kind === 'bad' ? 'triangle' : 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(kind === 'bad' ? 0.13 : 0.09, t0 + dt + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + (kind === 'done' ? 0.35 : 0.2));
+      o.connect(g).connect(actx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.4);
+    }
+  } catch { /* audio unavailable: stay silent */ }
+}
+icon.sound = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+icon.mute = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function soundBtn() {
+  const on = () => S.sound !== false;
+  const b = h('button', { type: 'button', class: 'chip sound-btn', 'aria-pressed': String(on()), 'aria-label': 'Sound effects', title: 'Sound effects on/off' });
+  const draw = () => { b.innerHTML = ''; b.append(ico(on() ? 'sound' : 'mute')); b.setAttribute('aria-pressed', String(on())); };
+  b.onclick = () => { S.sound = !on(); save(); draw(); if (on()) sfx('ok'); };
+  draw();
+  return b;
+}
+
 // ───────────────────────────── visuals ─────────────────────────────
 function arrayViz(name, values, changed = new Set()) {
   return h('div', { class: 'arr', role: 'img', 'aria-label': `${name}: ${values.join(', ')}` },
@@ -386,6 +419,7 @@ function topbar(back) {
     h('div', { class: 'wrap topbar-in' },
       back ? h('a', { class: 'back', href: '#/' }, '‹ Path') : h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand-mark' }, '>_'), h('span', {}, 'cs116', h('b', { class: 'brand-b' }, '.trainer'))),
       h('div', { class: 'stats' },
+        soundBtn(),
         h('span', { class: 'chip streak', title: 'Day streak' }, ico('flame'), liveStreak()),
         h('span', { class: 'chip xp', title: 'Total XP' }, ico('bolt'), S.xp),
         h('span', { class: 'chip goal', title: `Daily goal: ${S.day.date === today() ? S.day.xp : 0} / ${S.goal} XP` }, h('span', { class: 'ring', style: `--p:${pct}` }), `${pct}%`))));
@@ -464,7 +498,7 @@ function session(cfg) {
   const xpChip = h('span', { class: 'chip xp' }, ico('bolt'), '+0');
   const head = h('header', { class: 'lhead' }, h('div', { class: 'wrap lhead-in' },
     h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Quit', onclick: () => { if (pos === 0 || confirm('Leave this session? Progress in it is lost.')) location.hash = '#/'; }, html: icon.x }),
-    bar, xpChip));
+    bar, soundBtn(), xpChip));
   const main = h('main', { class: 'wrap lmain' });
   const foot = h('footer', { class: 'lfoot' });
   $app.append(head, main, foot);
@@ -525,9 +559,15 @@ function session(cfg) {
     const res = gaveUp ? { ok: false, why: '', correctText: evaluate(it, it.t === 'mcq' ? -1 : (it.t === 'fill' ? it.b.map(() => '') : '')).correctText, blanks: it.b && it.b.map(() => false) } : evaluate(it, ans);
     if (gaveUp && it.t === 'mcq') { res.correctWhy = it.o[it.a][1]; res.why = 'No problem. Read why the answer is correct, and this question comes back later in the session.'; }
     w.lock(res);
+    // feedback: sound + card animation (pulse when right, shake when wrong)
+    sfx(res.ok ? 'ok' : 'bad');
+    card.classList.remove('anim-ok', 'anim-bad'); void card.offsetWidth;
+    card.classList.add(res.ok ? 'anim-ok' : 'anim-bad');
     S.answered++; if (res.ok) S.correct++;
     if (res.ok) {
       right++; const pts = entry.retry ? 5 : 10; if (!entry.retry) firstTry++; gained += pts; addXP(pts);
+      const pop = h('span', { class: 'xp-pop', 'aria-hidden': 'true' }, `+${pts}`);
+      xpChip.append(pop); setTimeout(() => pop.remove(), 1000);
       if (cfg.review) clearMistake(it._id);
     } else {
       wrong++; addMistake(it._id);
@@ -562,6 +602,7 @@ function session(cfg) {
       S.done[cfg.lesson.id] = { best: Math.max(acc, prev ? prev.best : 0), at: Date.now() }; save();
     }
     const nextL = cfg.lesson ? LESSONS[LESSONS.indexOf(cfg.lesson) + 1] : null;
+    sfx('done');
     const mins = Math.max(1, Math.round((Date.now() - t0) / 60000));
     head.remove(); foot.innerHTML = ''; foot.className = 'lfoot';
     $app.prepend(topbar(true));
