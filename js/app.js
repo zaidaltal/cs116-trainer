@@ -374,6 +374,11 @@ function route() {
   return home();
 }
 window.addEventListener('hashchange', route);
+// GoatCounter counts the first page load by itself; count in-app navigation (lessons, exams) as page views too.
+// Hash routes like #/lesson/u1-names show up in the dashboard as /cs116-trainer/#/lesson/u1-names.
+window.addEventListener('hashchange', () => {
+  if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: location.pathname + location.hash, title: document.title });
+});
 
 function topbar(back) {
   const pct = Math.min(100, Math.round(S.day.date === today() ? S.day.xp / S.goal * 100 : 0));
@@ -431,7 +436,7 @@ function home() {
     }),
     h('footer', { class: 'foot' },
       h('p', { class: 'credit' }, 'Built by ', h('b', {}, 'Zaid Altal'), ' for CS116 Computing Fundamentals students at the German Jordanian University (GJU). Not an official GJU resource.'),
-      h('p', {}, 'Every code example and expected output in this trainer was compiled and run with gcc. Progress is stored only in this browser.'),
+      h('p', {}, 'Every code example and expected output in this trainer was compiled and run with gcc. Progress is stored only in this browser. Visits are counted anonymously with GoatCounter (no cookies, no personal data).'),
       h('button', { class: 'linkbtn', type: 'button', onclick: () => { if (confirm('Reset all progress, XP and mistakes?')) { localStorage.removeItem(KEY); S = load(); route(); } } }, 'Reset progress'))));
 }
 const stat = (v, l) => h('div', { class: 'stat' }, h('b', {}, v), h('span', {}, l));
