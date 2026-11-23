@@ -342,3 +342,9 @@ button { font: inherit; color: inherit; }
 .sound-btn:hover { color: var(--accent); border-color: var(--accent); }
 .sound-btn[aria-pressed="false"] { color: var(--muted); }
 .lhead-in .sound-btn { flex: none; }
+.fb-list { margin: 6px 0 0; padding-left: 18px; }
+.fb-list li { margin-bottom: 4px; }
+.fb-list code { white-space: pre-wrap; }
+/* "I don't know": a neutral learning panel, not an error */
+.lfoot.is-info { background: #13212e; border-top: 2px solid rgba(0, 255, 255, .45); animation: fbIn .28s cubic-bezier(.2, .9, .3, 1.15); }
+.is-info .fb-title { color: var(--accent); }

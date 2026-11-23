@@ -2,7 +2,7 @@
    Content lives in js/data/*.js. Progress is saved in localStorage. */
 (() => {
 'use strict';
-const { units: UNITS, mock: MOCK } = window.CS116;
+const { units: UNITS, mock: MOCK, ex: EX = {} } = window.CS116;
 const TRACES = window.CS116_TRACES || {};
 const $app = document.getElementById('app');
 const QUESTION_TYPES = new Set(['mcq', 'out', 'num', 'fill', 'bug', 'grid']);
@@ -15,7 +15,11 @@ UNITS.forEach((u, ui) => u.lessons.forEach((l, li) => {
   l.unit = u; l.num = `${ui + 1}.${li + 1}`; LESSONS.push(l);
   l.items.forEach((it, i) => {
     it._id = `${l.id}:${i}`; Q[it._id] = { item: it, lesson: l, unit: u };
-    if (it.again) { it.again._id = it._id + 'b'; it.again._base = it._id; Q[it.again._id] = { item: it.again, lesson: l, unit: u }; }
+    if (!it.x && EX[it._id]) it.x = EX[it._id];   // explanations from js/data/explain.js
+    if (it.again) {
+      it.again._id = it._id + 'b'; it.again._base = it._id; Q[it.again._id] = { item: it.again, lesson: l, unit: u };
+      if (!it.again.x && EX[it.again._id]) it.again.x = EX[it.again._id];
+    }
   });
 }));
 MOCK.forEach((it, i) => { it._id = `mock:${i}`; Q[it._id] = { item: it, lesson: null, unit: null }; });
@@ -376,9 +380,17 @@ const TYPE_LABEL = { mcq: 'Multiple choice', out: 'What does it print?', num: 'G
 
 function feedbackBody(item, res, ans) {
   const parts = [];
-  if (item.t === 'mcq') {
+  if (item.t === 'mcq' && res.gaveUp) {
+    // "I don't know" / unanswered: teach the whole question, i.e. the right answer AND why each other option is wrong
+    parts.push(h('p', { html: `<b>Answer:</b> <code>${esc(res.correctText)}</code>. ${md(item.o[item.a][1])}` }));
+    const others = item.o.map((o, i) => i).filter(i => i !== item.a);
+    parts.push(h('div', { class: 'fb-why' }, h('b', {}, 'Why the other options are wrong:'),
+      h('ul', { class: 'fb-list' }, others.map(i => h('li', {}, h('code', {}, item.o[i][0]), ' ', h('span', { html: md(item.o[i][1]) }))))));
+  } else if (item.t === 'mcq') {
     if (res.ok) parts.push(h('p', { html: md(res.correctWhy) }));
     else { parts.push(h('p', { class: 'fb-why', html: '<b>Why your choice is wrong:</b> ' + md(res.why) })); parts.push(h('p', { html: `<b>Correct:</b> ${esc(res.correctText)}. ${md(res.correctWhy)}` })); }
+  } else if (item.t === 'out' && res.gaveUp) {
+    parts.push(outBlock(item.a, 'C prints'));
   } else if (item.t === 'out') {
     if (!res.ok) {
       if (res.why) parts.push(h('p', { class: 'fb-why', html: '<b>Why:</b> ' + md(res.why) }));
@@ -387,7 +399,12 @@ function feedbackBody(item, res, ans) {
   } else if (res.why) parts.push(h('p', { class: 'fb-why', html: (res.ok ? '' : '<b>Why:</b> ') + md(res.why) }));
   if (!res.ok && item.t !== 'mcq' && item.t !== 'out') parts.push(h('p', {}, h('b', {}, 'Answer: '), h('code', {}, res.correctText)));
   if (item.t === 'bug' && res.ok && item.fix) parts.push(h('p', {}, h('b', {}, 'Fix: '), h('code', {}, item.fix)));
-  if (item.x) parts.push(h('p', { class: 'fb-x', html: md(item.x) }));
+  if (item.t === 'grid' && res.gaveUp) {
+    const [r, c] = item.a;
+    parts.push(h('p', { class: 'fb-why', html: (item.math ? `<b>Step by step:</b> maths counts from 1, C counts from 0, so subtract 1 from both: X${r + 1},${c + 1} → X[${r}][${c}]. Then ` : '<b>Step by step:</b> ') +
+      `the FIRST index is the row: go down to row ${r} (the top row is row 0). The SECOND index is the column: go across to column ${c} (the left column is column 0). That box holds <b>${esc(String(item.grid[r][c]))}</b>.` }));
+  }
+  if (item.x) parts.push(h('p', { class: res.gaveUp ? 'fb-why' : 'fb-x', html: (res.gaveUp ? '<b>Step by step:</b> ' : '') + md(item.x) }));
   return parts;
 }
 
@@ -557,12 +574,14 @@ function session(cfg) {
   function grade(entry, w, card, gaveUp) {
     const it = entry.item; const ans = gaveUp ? null : w.get();
     const res = gaveUp ? { ok: false, why: '', correctText: evaluate(it, it.t === 'mcq' ? -1 : (it.t === 'fill' ? it.b.map(() => '') : '')).correctText, blanks: it.b && it.b.map(() => false) } : evaluate(it, ans);
-    if (gaveUp && it.t === 'mcq') { res.correctWhy = it.o[it.a][1]; res.why = 'No problem. Read why the answer is correct, and this question comes back later in the session.'; }
+    if (gaveUp) { res.gaveUp = true; if (it.t === 'mcq') res.correctWhy = it.o[it.a][1]; }
     w.lock(res);
-    // feedback: sound + card animation (pulse when right, shake when wrong)
-    sfx(res.ok ? 'ok' : 'bad');
-    card.classList.remove('anim-ok', 'anim-bad'); void card.offsetWidth;
-    card.classList.add(res.ok ? 'anim-ok' : 'anim-bad');
+    // feedback: sound + card animation (pulse when right, shake when wrong). "I don't know" stays quiet: asking isn't a mistake.
+    if (!gaveUp) {
+      sfx(res.ok ? 'ok' : 'bad');
+      card.classList.remove('anim-ok', 'anim-bad'); void card.offsetWidth;
+      card.classList.add(res.ok ? 'anim-ok' : 'anim-bad');
+    }
     S.answered++; if (res.ok) S.correct++;
     if (res.ok) {
       right++; const pts = entry.retry ? 5 : 10; if (!entry.retry) firstTry++; gained += pts; addXP(pts);
@@ -583,10 +602,10 @@ function session(cfg) {
     }
     if (!res.ok && !entry.retry) fb.append(h('p', { class: 'muted small' }, it.again ? 'A similar question will come back later in this session.' : 'This question will come back later in this session.'));
     foot.innerHTML = '';
-    foot.className = 'lfoot ' + (res.ok ? 'is-ok' : 'is-bad');
+    foot.className = 'lfoot ' + (res.ok ? 'is-ok' : gaveUp ? 'is-info' : 'is-bad');
     const cont = h('button', { class: 'btn primary', type: 'button', onclick: next }, 'Continue');
     foot.append(h('div', { class: 'wrap' },
-      h('div', { class: 'fb' }, h('div', { class: 'fb-title' }, ico(res.ok ? 'check' : 'x', 'fb-ico'), res.ok ? (entry.retry ? 'Correct, that one stuck' : 'Correct') : (gaveUp ? 'Here is the answer' : 'Not quite')), fb),
+      h('div', { class: 'fb' }, h('div', { class: 'fb-title' }, ico(res.ok ? 'check' : gaveUp ? 'target' : 'x', 'fb-ico'), res.ok ? (entry.retry ? 'Correct, that one stuck' : 'Correct') : (gaveUp ? "Here's how it works" : 'Not quite')), fb),
       h('div', { class: 'lfoot-in end' }, cont)));
     setTimeout(() => { cont.focus({ preventScroll: true }); main.style.paddingBottom = (foot.offsetHeight + 24) + 'px'; }, 30);
   }
@@ -717,7 +736,7 @@ function runMock(mode) {
     over = true; clearInterval(iv);
     const results = items.map((it, k) => {
       const w = widgets[k]; const ans = w.ready() ? w.get() : null;
-      const res = ans == null ? { ok: false, why: 'Not answered.', correctText: evaluate(it, it.t === 'mcq' ? -1 : it.t === 'fill' ? it.b.map(() => '') : '').correctText } : evaluate(it, ans);
+      const res = ans == null ? { ok: false, gaveUp: true, why: 'Not answered.', correctText: evaluate(it, it.t === 'mcq' ? -1 : it.t === 'fill' ? it.b.map(() => '') : '').correctText } : evaluate(it, ans);
       if (it.t === 'mcq') res.correctWhy = it.o[it.a][1];
       if (!res.ok) addMistake(it._id);
       S.answered++; if (res.ok) S.correct++;

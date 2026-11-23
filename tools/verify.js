@@ -11,10 +11,10 @@ const tmp = path.join(require('os').tmpdir(), 'cs116-verify');
 fs.mkdirSync(tmp, { recursive: true });
 
 const ctx = { window: {}, console };
-ctx.CS116 = { units: [], mock: [], unit(u) { this.units.push(u); }, mockExam(m) { this.mock = m; } };
+ctx.CS116 = { units: [], mock: [], unit(u) { this.units.push(u); }, mockExam(m) { this.mock = m; }, ex: {}, explain(m) { Object.assign(this.ex, m); } };
 ctx.window.CS116 = ctx.CS116;
 vm.createContext(ctx);
-const files = fs.readdirSync(path.join(root, 'js', 'data')).filter(f => /^(unit\d|mock).*\.js$/.test(f)).sort();
+const files = fs.readdirSync(path.join(root, 'js', 'data')).filter(f => /^(unit\d|mock|explain).*\.js$/.test(f)).sort();
 for (const f of files) vm.runInContext(fs.readFileSync(path.join(root, 'js', 'data', f), 'utf8'), ctx, { filename: f });
 global.window = {}; require(path.join(root, 'js', 'data', 'traces.js'));
 const TRACES = global.window.CS116_TRACES;
@@ -85,11 +85,23 @@ function check(item, label) {
   if (item.again) check(item.again, label + ' (again)');
 }
 
+// Merge js/data/explain.js the same way app.js does, then require an explanation on every question:
+// mcq has a "why" per option, grid builds one automatically; everything else needs x (or a tracer).
+const EX = ctx.CS116.ex || {}; const usedEx = new Set();
+const explained = it => it.t === 'mcq' || it.t === 'grid' || !!it.x || !!it.trace;
 for (const u of ctx.CS116.units) for (const l of u.lessons) {
   if (ids.has(l.id)) fails.push(`duplicate lesson id ${l.id}`); ids.add(l.id);
-  l.items.forEach((it, i) => check(it, `${l.id} #${i} ${it.t} ${(it.q || it.h || '').slice(0, 50)}`));
+  l.items.forEach((it, i) => {
+    const pairs = [[`${l.id}:${i}`, it]]; if (it.again) pairs.push([`${l.id}:${i}b`, it.again]);
+    for (const [id, q] of pairs) {
+      if (EX[id]) { usedEx.add(id); if (!q.x) q.x = EX[id]; }
+      if (['out', 'num', 'fill', 'bug'].includes(q.t) && !explained(q)) fails.push(`${id} (${q.t}) has no explanation: add it to js/data/explain.js`);
+    }
+    check(it, `${l.id} #${i} ${it.t} ${(it.q || it.h || '').slice(0, 50)}`);
+  });
 }
-(ctx.CS116.mock || []).forEach((it, i) => check(it, `mock Q${i + 1}`));
+for (const k of Object.keys(EX)) if (!usedEx.has(k)) fails.push(`explain.js key ${k} does not match any question (items moved?)`);
+(ctx.CS116.mock || []).forEach((it, i) => { if (!explained(it)) fails.push(`mock Q${i + 1} has no explanation`); check(it, `mock Q${i + 1}`); });
 
 const lessons = ctx.CS116.units.reduce((a, u) => a + u.lessons.length, 0);
 console.log(`${ctx.CS116.units.length} units, ${lessons} lessons, ${qCount} questions, ${(ctx.CS116.mock || []).length} mock questions`);
