@@ -555,30 +555,21 @@ function session(cfg) {
   const t0 = Date.now();
   const bar = h('div', { class: 'pbar' }, h('span'));
   const xpChip = h('span', { class: 'chip xp' }, ico('bolt'), '+0');
-  // every graded answer, in order (feeds the previous-question view and the end-of-lesson summary)
+  // every graded answer, in order (feeds the look-back view and the end-of-lesson summary)
   const history = [];
-  let curGraded = false; // has the question currently on screen been submitted?
-  const prevEntry = () => history[history.length - (curGraded ? 2 : 1)];
-  const prevBtn = h('button', { class: 'chip prev-btn', type: 'button', disabled: true, 'aria-label': 'Previous question (read-only)', title: 'Previous question (read-only)', onclick: () => openPrev() }, '‹ Prev');
-  const updatePrev = () => { prevBtn.disabled = !prevEntry(); };
+  // Look-back navigation: viewPos is the card on screen; pos is where you really are in the lesson.
+  // Earlier cards are shown read-only (notes re-render, answered questions show your locked answer).
+  // The live card's DOM is stashed while you look back, so half-typed answers survive the trip.
+  let viewPos = 0, stash = null;
+  const backBtn = h('button', { class: 'chip prev-btn', type: 'button', disabled: true, 'aria-label': 'Go back to the previous card', title: 'Go back (notes and answered questions, read-only)', onclick: () => goBack() }, '‹ Back');
+  const updateNav = () => { backBtn.disabled = viewPos === 0; };
   const head = h('header', { class: 'lhead' }, h('div', { class: 'wrap lhead-in' },
     h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Quit', onclick: () => { if (pos === 0 || confirm('Leave this session? Progress in it is lost.')) location.hash = '#/'; }, html: icon.x }),
-    bar, prevBtn, soundBtn(), xpChip));
-  function openPrev() {
-    const e = prevEntry(); if (!e) return;
-    const dlg = h('dialog', { class: 'prev-dlg', 'aria-label': 'Previous question' },
-      h('div', { class: 'prev-head' }, h('b', {}, 'Previous question'), h('span', { class: 'muted small' }, 'Read-only: answers can’t be changed after submitting'),
-        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', html: icon.x, onclick: () => dlg.close() })),
-      recapRow(e, { open: true }));
-    dlg.addEventListener('close', () => dlg.remove());
-    dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); }); // click on backdrop closes
-    $app.append(dlg); dlg.showModal();
-  }
+    bar, backBtn, soundBtn(), xpChip));
   const main = h('main', { class: 'wrap lmain' });
   const foot = h('footer', { class: 'lfoot' });
   $app.append(head, main, foot);
   const onKey = e => {
-    if (document.querySelector('dialog[open]')) return; // the previous-question view is open: don't answer behind it
     if (e.key === 'Enter' && !e.shiftKey && document.activeElement?.tagName !== 'TEXTAREA') { const b = foot.querySelector('.btn.primary:not([disabled])'); if (b) { e.preventDefault(); b.click(); } }
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const b = foot.querySelector('.btn.primary:not([disabled])'); if (b) { e.preventDefault(); b.click(); } }
     if (/^[1-4]$/.test(e.key) && curW && curW.keys && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) curW.keys(+e.key - 1);
@@ -590,24 +581,57 @@ function session(cfg) {
   function progress() { bar.firstChild.style.width = `${pos / queue.length * 100}%`; xpChip.lastChild.textContent = `+${gained}`; }
   function footer(...kids) { foot.innerHTML = ''; foot.className = 'lfoot'; foot.append(h('div', { class: 'wrap lfoot-in' }, kids)); }
 
+  // ── content builders shared by the live card and the look-back view
+  const learnContent = it => [h('h2', { class: 'learn-h' }, it.h), it.p && h('div', { class: 'prose', html: md(it.p) }), it.table && tableViz(it.table),
+    it.code && codeBlock(it.code), it.code && it.out != null && outBlock(it.out), it.stdin && it.out != null && h('p', { class: 'stdin' }, 'Keyboard input: ', h('code', {}, it.stdin)),
+    it.array && arrayViz(it.array.name, it.array.values), it.grid && gridViz(it.grid.name, it.grid.rows), boxes(it)];
+  const stepsHead = it => [h('h2', { class: 'learn-h' }, it.h), it.p && h('div', { class: 'prose', html: md(it.p) }), it.pre && h('p', { class: 'stdin' }, 'With ', h('code', {}, it.pre))];
+
+  function goBack() {
+    if (viewPos === 0) return;
+    if (viewPos === pos) stash = { main: [...main.childNodes], foot: [...foot.childNodes], footClass: foot.className, pad: main.style.paddingBottom, curW, y: window.scrollY };
+    viewPos--; renderLookBack();
+  }
+  function goForward() {
+    if (viewPos >= pos) return;
+    viewPos++;
+    if (viewPos === pos) { // back to the live card, exactly as it was left
+      main.replaceChildren(...stash.main); foot.replaceChildren(...stash.foot); foot.className = stash.footClass;
+      main.style.paddingBottom = stash.pad; curW = stash.curW; const y = stash.y; stash = null; updateNav(); window.scrollTo(0, y);
+    } else renderLookBack();
+  }
+  function renderLookBack() {
+    const entry = queue[viewPos]; const it = entry.item;
+    curW = null; main.style.paddingBottom = ''; window.scrollTo(0, 0); updateNav();
+    const card = h('article', { class: 'card lookback' },
+      h('p', { class: 'qtype' }, `Looking back · ${TYPE_LABEL[it.t]}`, h('span', { class: 'tag' }, 'read-only')));
+    main.replaceChildren(card);
+    if (it.t === 'learn') put(card, learnContent(it));
+    else if (it.t === 'steps') put(card, stepsHead(it), h('ol', { class: 'steps' }, it.steps.map(s => h('li', {}, h('code', {}, s)))), boxes(it));
+    else if (it.t === 'trace') put(card, h('h2', { class: 'learn-h' }, it.h || 'Trace it'), it.p && h('div', { class: 'prose', html: md(it.p) }), Tracer(it.id), boxes(it));
+    else if (entry.hist) put(card, h('p', { class: 'muted small' }, 'Answers can’t be changed after submitting.'), recapRow(entry.hist, { open: true }));
+    const toLive = viewPos + 1 === pos;
+    const fwd = h('button', { class: 'btn primary', type: 'button', onclick: goForward }, toLive ? 'Back to where I was ›' : 'Forward ›');
+    footer(h('button', { class: 'btn ghost', type: 'button', disabled: viewPos === 0, onclick: goBack }, '‹ Back'),
+      h('span', { class: 'lb-count muted mono-s' }, `${viewPos + 1} / ${pos + 1}`), fwd);
+  }
+
   function show() {
     progress(); main.innerHTML = ''; main.style.paddingBottom = ''; curW = null; window.scrollTo(0, 0);
-    curGraded = false; updatePrev();
+    viewPos = pos; stash = null; updateNav();
     if (pos >= queue.length) return finish();
     const entry = queue[pos]; const it = entry.item;
     const tag = h('p', { class: 'qtype' }, TYPE_LABEL[it.t], entry.retry && h('span', { class: 'tag retry' }, 'Try again'), Q[it._id]?.lesson?.weak && cfg.drill && h('span', { class: 'tag weak' }, Q[it._id].lesson.title));
     const card = h('article', { class: 'card' }, tag);
     main.append(card);
     if (it.t === 'learn') {
-      put(card, h('h2', { class: 'learn-h' }, it.h), it.p && h('div', { class: 'prose', html: md(it.p) }), it.table && tableViz(it.table),
-        it.code && codeBlock(it.code), it.code && it.out != null && outBlock(it.out), it.stdin && it.out != null && h('p', { class: 'stdin' }, 'Keyboard input: ', h('code', {}, it.stdin)),
-        it.array && arrayViz(it.array.name, it.array.values), it.grid && gridViz(it.grid.name, it.grid.rows), boxes(it));
+      put(card, learnContent(it));
       footer(h('span'), h('button', { class: 'btn primary', type: 'button', onclick: next }, 'Continue'));
     } else if (it.t === 'steps') {
       let k = 1; const list = h('ol', { class: 'steps' });
       const draw = () => { list.innerHTML = ''; it.steps.slice(0, k).forEach((s, i) => list.append(h('li', { class: i === k - 1 ? 'new' : '' }, h('code', {}, s)))); };
       draw();
-      put(card, h('h2', { class: 'learn-h' }, it.h), it.p && h('div', { class: 'prose', html: md(it.p) }), it.pre && h('p', { class: 'stdin' }, 'With ', h('code', {}, it.pre)), list, boxes(it));
+      put(card, stepsHead(it), list, boxes(it));
       const btn = h('button', { class: 'btn primary', type: 'button' }, 'Next step');
       btn.onclick = () => { if (k < it.steps.length) { k++; draw(); if (k === it.steps.length) btn.textContent = 'Continue'; } else next(); };
       if (it.steps.length === 1) btn.textContent = 'Continue';
@@ -638,8 +662,8 @@ function session(cfg) {
     const res = gaveUp ? { ok: false, why: '', correctText: evaluate(it, it.t === 'mcq' ? -1 : (it.t === 'fill' ? it.b.map(() => '') : '')).correctText, blanks: it.b && it.b.map(() => false) } : evaluate(it, ans);
     if (gaveUp) { res.gaveUp = true; if (it.t === 'mcq') res.correctWhy = it.o[it.a][1]; }
     w.lock(res);
-    history.push({ item: it, ans: Array.isArray(ans) ? ans.slice() : ans, res, retry: !!entry.retry, n: history.length + 1 });
-    curGraded = true; updatePrev();
+    entry.hist = { item: it, ans: Array.isArray(ans) ? ans.slice() : ans, res, retry: !!entry.retry, n: history.length + 1 };
+    history.push(entry.hist);
     // feedback: sound + card animation (pulse when right, shake when wrong). "I don't know" stays quiet: asking isn't a mistake.
     if (!gaveUp) {
       sfx(res.ok ? 'ok' : 'bad');

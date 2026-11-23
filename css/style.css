@@ -378,3 +378,7 @@ button { font: inherit; color: inherit; }
 .prev-head .iconbtn { margin-left: auto; }
 .prev-dlg[open] { animation: fbIn .22s ease-out; }
 @media (max-width: 720px) { .recap-ans .lbl { width: 78px; } .prev-btn { padding: 0 8px; } }
+/* look-back (read-only earlier cards) */
+.card.lookback { border-style: dashed; border-color: var(--line-2); }
+.card.lookback .qtype { color: var(--muted); }
+.lb-count { flex: 1; text-align: center; }
