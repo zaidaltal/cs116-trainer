@@ -507,19 +507,78 @@ function startWeak() {
   session({ title: 'Common-traps drill', review: false, drill: true, items: shuffle(pool).slice(0, 15).map(item => ({ item })) });
 }
 
+// ───────────────────────────── answer recap (summary screen + previous-question view) ─────────────────────────────
+// Read-only by design: these render plain text/code, never input widgets, so a submitted answer can't be changed.
+function answerText(item, ans, res) {
+  if (res.gaveUp || ans == null) return null; // "I don't know" / unanswered
+  switch (item.t) {
+    case 'mcq': return item.o[ans] ? item.o[ans][0] : '';
+    case 'out': return String(ans).replace(/\s+$/, '') || '(empty)';
+    case 'num': return String(ans).trim();
+    case 'fill': return ans.map((a, k) => `${k + 1}) ${a.trim() || '(empty)'}`).join('   ');
+    case 'bug': return `Line ${ans + 1}: ${item.code.split('\n')[ans].trim()}`;
+    case 'grid': { const [r, c] = String(ans).split(',').map(Number); return `${item.name}[${r}][${c}] = ${item.grid[r][c]}`; }
+  }
+  return String(ans);
+}
+function correctAnswerText(item, res) {
+  switch (item.t) {
+    case 'mcq': return item.o[item.a][0];
+    case 'out': return item.a === '' ? '(nothing)' : item.a;
+    case 'fill': return item.b.map((b, k) => `${k + 1}) ${b[0]}`).join('   ');
+    case 'bug': return `Line ${item.a + 1} → ${item.fix || item.code.split('\n')[item.a].trim()}`;
+    default: return res.correctText;
+  }
+}
+function recapRow(entry, { open = false } = {}) {
+  const { item, ans, res, n, retry } = entry;
+  const mine = answerText(item, ans, res);
+  const shownCode = item.t === 'fill' ? item.code.replace(/\[\[\d+\]\]/g, '____') : item.code;
+  return h('details', { class: 'recap ' + (res.ok ? 'ok' : 'bad'), open: open || null },
+    h('summary', {},
+      h('span', { class: 'recap-ico', role: 'img', 'aria-label': res.ok ? 'Correct' : 'Wrong' }, res.ok ? '✅' : '❌'),
+      h('span', { class: 'recap-main' },
+        h('span', { class: 'recap-q' }, h('b', {}, `Q${n}. `), h('span', { html: md(item.q || 'What does this print?') }), retry && h('span', { class: 'tag retry' }, 'Re-ask')),
+        h('span', { class: 'recap-ans' }, h('span', { class: 'lbl' }, 'Your answer'), mine == null ? h('i', { class: 'muted' }, "I don't know") : h('code', { class: res.ok ? 'is-ok' : 'is-bad' }, mine)),
+        res.ok ? null : h('span', { class: 'recap-ans' }, h('span', { class: 'lbl' }, 'Correct'), h('code', { class: 'is-ok' }, correctAnswerText(item, res))),
+        h('span', { class: 'recap-more' }, 'Explanation ▾'))),
+    h('div', { class: 'recap-body' },
+      shownCode && codeBlock(shownCode),
+      item.stdin && h('p', { class: 'stdin' }, 'Keyboard input: ', h('code', {}, item.stdin.replace(/\n/g, ' ⏎ '))),
+      h('div', { class: 'fb-body' }, feedbackBody(item, res, ans)),
+      item.trace && traceToggle(item.trace)));
+}
+
 function session(cfg) {
   const queue = cfg.items.slice();
   let pos = 0, gained = 0, right = 0, wrong = 0, firstTry = 0, qTotal = queue.filter(e => isQ(e.item)).length;
   const t0 = Date.now();
   const bar = h('div', { class: 'pbar' }, h('span'));
   const xpChip = h('span', { class: 'chip xp' }, ico('bolt'), '+0');
+  // every graded answer, in order (feeds the previous-question view and the end-of-lesson summary)
+  const history = [];
+  let curGraded = false; // has the question currently on screen been submitted?
+  const prevEntry = () => history[history.length - (curGraded ? 2 : 1)];
+  const prevBtn = h('button', { class: 'chip prev-btn', type: 'button', disabled: true, 'aria-label': 'Previous question (read-only)', title: 'Previous question (read-only)', onclick: () => openPrev() }, '‹ Prev');
+  const updatePrev = () => { prevBtn.disabled = !prevEntry(); };
   const head = h('header', { class: 'lhead' }, h('div', { class: 'wrap lhead-in' },
     h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Quit', onclick: () => { if (pos === 0 || confirm('Leave this session? Progress in it is lost.')) location.hash = '#/'; }, html: icon.x }),
-    bar, soundBtn(), xpChip));
+    bar, prevBtn, soundBtn(), xpChip));
+  function openPrev() {
+    const e = prevEntry(); if (!e) return;
+    const dlg = h('dialog', { class: 'prev-dlg', 'aria-label': 'Previous question' },
+      h('div', { class: 'prev-head' }, h('b', {}, 'Previous question'), h('span', { class: 'muted small' }, 'Read-only: answers can’t be changed after submitting'),
+        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', html: icon.x, onclick: () => dlg.close() })),
+      recapRow(e, { open: true }));
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); }); // click on backdrop closes
+    $app.append(dlg); dlg.showModal();
+  }
   const main = h('main', { class: 'wrap lmain' });
   const foot = h('footer', { class: 'lfoot' });
   $app.append(head, main, foot);
   const onKey = e => {
+    if (document.querySelector('dialog[open]')) return; // the previous-question view is open: don't answer behind it
     if (e.key === 'Enter' && !e.shiftKey && document.activeElement?.tagName !== 'TEXTAREA') { const b = foot.querySelector('.btn.primary:not([disabled])'); if (b) { e.preventDefault(); b.click(); } }
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const b = foot.querySelector('.btn.primary:not([disabled])'); if (b) { e.preventDefault(); b.click(); } }
     if (/^[1-4]$/.test(e.key) && curW && curW.keys && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) curW.keys(+e.key - 1);
@@ -533,6 +592,7 @@ function session(cfg) {
 
   function show() {
     progress(); main.innerHTML = ''; main.style.paddingBottom = ''; curW = null; window.scrollTo(0, 0);
+    curGraded = false; updatePrev();
     if (pos >= queue.length) return finish();
     const entry = queue[pos]; const it = entry.item;
     const tag = h('p', { class: 'qtype' }, TYPE_LABEL[it.t], entry.retry && h('span', { class: 'tag retry' }, 'Try again'), Q[it._id]?.lesson?.weak && cfg.drill && h('span', { class: 'tag weak' }, Q[it._id].lesson.title));
@@ -572,10 +632,14 @@ function session(cfg) {
   }
 
   function grade(entry, w, card, gaveUp) {
+    if (entry.graded) return; // an answer is final once submitted (also blocks double-taps on Check)
+    entry.graded = true;
     const it = entry.item; const ans = gaveUp ? null : w.get();
     const res = gaveUp ? { ok: false, why: '', correctText: evaluate(it, it.t === 'mcq' ? -1 : (it.t === 'fill' ? it.b.map(() => '') : '')).correctText, blanks: it.b && it.b.map(() => false) } : evaluate(it, ans);
     if (gaveUp) { res.gaveUp = true; if (it.t === 'mcq') res.correctWhy = it.o[it.a][1]; }
     w.lock(res);
+    history.push({ item: it, ans: Array.isArray(ans) ? ans.slice() : ans, res, retry: !!entry.retry, n: history.length + 1 });
+    curGraded = true; updatePrev();
     // feedback: sound + card animation (pulse when right, shake when wrong). "I don't know" stays quiet: asking isn't a mistake.
     if (!gaveUp) {
       sfx(res.ok ? 'ok' : 'bad');
@@ -632,6 +696,13 @@ function session(cfg) {
       h('p', { class: 'lead' }, cfg.title),
       h('div', { class: 'done-stats' }, stat(`+${gained}`, 'XP'), stat(`${acc}%`, 'right first time'), stat(`${mins} min`, 'time'), stat(liveStreak(), 'day streak')),
       wrong ? h('p', { class: 'muted' }, `${wrong} wrong answer${wrong > 1 ? 's were' : ' was'} added to your Mistakes deck.`) : h('p', { class: 'muted' }, 'No mistakes in this session.')));
+    if (history.length) {
+      const okN = history.filter(e => e.res.ok).length;
+      main.append(h('section', { class: 'summary' },
+        h('div', { class: 'summary-head' }, h('h2', { class: 'section-t' }, 'Your answers'),
+          h('span', { class: 'muted mono-s' }, `✅ ${okN}   ❌ ${history.length - okN}   · tap a question for its explanation`)),
+        history.map(e => recapRow(e))));
+    }
     footer(h('a', { class: 'btn ghost', href: '#/' }, 'Back to path'),
       nextL ? h('a', { class: 'btn primary', href: `#/lesson/${nextL.id}` }, `Next: ${nextL.num} ${nextL.title}`) : h('a', { class: 'btn primary', href: '#/mock' }, 'Take a mock exam'));
   }
