@@ -412,14 +412,14 @@ function feedbackBody(item, res, ans) {
 let cleanup = null;
 function route() {
   if (cleanup) { cleanup(); cleanup = null; }
-  const [view, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  const [view, arg, arg2] = location.hash.replace(/^#\/?/, '').split('/');
   window.scrollTo(0, 0);
   $app.innerHTML = '';
   if (view === 'lesson') { const l = LESSONS.find(x => x.id === arg); return l ? playLesson(l) : home(); }
   if (view === 'mistakes') return mistakesView();
   if (view === 'review') return startReview();
   if (view === 'weak') return startWeak();
-  if (view === 'mock') return arg ? runMock(arg) : mockView();
+  if (view === 'mock') return arg === 'history' ? mockAttemptView(+arg2) : arg ? runMock(arg) : mockView();
   if (view === 'sheet') return sheetView();
   return home();
 }
@@ -538,8 +538,8 @@ function recapRow(entry, { open = false } = {}) {
     h('summary', {},
       h('span', { class: 'recap-ico', role: 'img', 'aria-label': res.ok ? 'Correct' : 'Wrong' }, res.ok ? '✅' : '❌'),
       h('span', { class: 'recap-main' },
-        h('span', { class: 'recap-q' }, h('b', {}, `Q${n}. `), h('span', { html: md(item.q || 'What does this print?') }), retry && h('span', { class: 'tag retry' }, 'Re-ask')),
-        h('span', { class: 'recap-ans' }, h('span', { class: 'lbl' }, 'Your answer'), mine == null ? h('i', { class: 'muted' }, "I don't know") : h('code', { class: res.ok ? 'is-ok' : 'is-bad' }, mine)),
+        h('span', { class: 'recap-q' }, /^Q\d+\.\s/.test(item.q || '') ? null : h('b', {}, `Q${n}. `), h('span', { html: md(item.q || 'What does this print?') }), retry && h('span', { class: 'tag retry' }, 'Re-ask')),
+        h('span', { class: 'recap-ans' }, h('span', { class: 'lbl' }, 'Your answer'), mine == null ? h('i', { class: 'muted' }, res.unanswered ? 'Not answered' : "I don't know") : h('code', { class: res.ok ? 'is-ok' : 'is-bad' }, mine)),
         res.ok ? null : h('span', { class: 'recap-ans' }, h('span', { class: 'lbl' }, 'Correct'), h('code', { class: 'is-ok' }, correctAnswerText(item, res))),
         h('span', { class: 'recap-more' }, 'Explanation ▾'))),
     h('div', { class: 'recap-body' },
@@ -774,8 +774,15 @@ function mockView() {
       h('a', { class: 'tool big', href: '#/mock/deck' }, h('b', {}, 'Deck mock exam'), h('span', {}, '19 questions from slides 55–58 · 30 minutes · 1 mark each'), h('span', { class: 'arrow' }, '→')),
       h('a', { class: 'tool big', href: '#/mock/past' }, h('b', {}, 'Past-paper exam'), h('span', {}, '25 real questions from previous CS116 online quizzes · 25 minutes'), h('span', { class: 'arrow' }, '→')),
       h('a', { class: 'tool big', href: '#/mock/mixed' }, h('b', {}, 'Mixed mock exam'), h('span', {}, '25 questions from every unit, weighted towards your weak spots · 40 minutes'), h('span', { class: 'arrow' }, '→'))),
-    S.mocks.length ? h('section', { class: 'mgroup' }, h('h2', {}, 'Past attempts'),
-      h('ul', { class: 'mlist' }, S.mocks.slice().reverse().slice(0, 10).map(m => h('li', {}, h('span', {}, `${({ deck: 'Deck', past: 'Past paper', mixed: 'Mixed' })[m.mode] || 'Mixed'} · ${new Date(m.at).toLocaleString()}`), h('b', {}, `${m.score}/${m.total}`))))) : null,
+    S.mocks.length ? h('section', { class: 'mgroup' }, h('h2', {}, `Your exam history (${S.mocks.length})`),
+      h('p', { class: 'muted small' }, 'Tap an attempt to see every question, what you answered and the correct answer.'),
+      h('ul', { class: 'mlist history' }, S.mocks.map((m, idx) => ({ m, idx })).reverse().map(({ m, idx }) => {
+        const pct = Math.round(m.score / m.total * 100);
+        return h('li', {}, h('a', { class: 'hist-row', href: `#/mock/history/${idx}` },
+          h('span', { class: 'hist-main' }, h('b', {}, MOCK_NAME[m.mode] || 'Mock exam'), h('span', { class: 'muted small' }, `${new Date(m.at).toLocaleString()} · ${fmtDur(m.secs)}${m.qs ? '' : ' · score only'}`)),
+          h('span', { class: 'hist-score ' + (pct >= 85 ? 'good' : pct >= 70 ? 'mid' : 'low') }, `${m.score}/${m.total}`, h('small', {}, ` ${pct}%`)),
+          h('span', { class: 'arrow' }, '›')));
+      }))) : null,
     h('p', { class: 'muted' }, 'Deck scoring: 17–19 ready · 14–16 redo the traps · under 14 redo the drills of your weak part.')));
 }
 function pickMixed() {
@@ -798,7 +805,7 @@ function runMock(mode) {
   const nav = h('div', { class: 'qnav' });
   const head = h('header', { class: 'lhead' }, h('div', { class: 'wrap lhead-in' },
     h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Quit exam', onclick: () => { if (confirm('Quit the exam? Your answers are lost.')) location.hash = '#/mock'; }, html: icon.x }),
-    h('b', { class: 'lhead-t' }, mode === 'deck' ? 'Deck mock exam' : 'Mixed mock exam'), timer));
+    h('b', { class: 'lhead-t' }, MOCK_NAME[mode] || 'Mock exam'), timer));
   const main = h('main', { class: 'wrap lmain' });
   const foot = h('footer', { class: 'lfoot' });
   $app.append(head, main, foot);
@@ -829,34 +836,65 @@ function runMock(mode) {
     const unanswered = widgets.filter(w => !w.ready()).length;
     if (!timeUp && unanswered && !confirm(`${unanswered} question${unanswered > 1 ? 's are' : ' is'} unanswered. Submit anyway?`)) return;
     over = true; clearInterval(iv);
-    const results = items.map((it, k) => {
+    // Save the full attempt (question ids + your answers) so it can be reviewed later from the history.
+    const qs = items.map((it, k) => {
       const w = widgets[k]; const ans = w.ready() ? w.get() : null;
-      const res = ans == null ? { ok: false, gaveUp: true, why: 'Not answered.', correctText: evaluate(it, it.t === 'mcq' ? -1 : it.t === 'fill' ? it.b.map(() => '') : '').correctText } : evaluate(it, ans);
-      if (it.t === 'mcq') res.correctWhy = it.o[it.a][1];
+      const res = mockResult(it, ans);
       if (!res.ok) addMistake(it._id);
       S.answered++; if (res.ok) S.correct++;
-      return { it, ans, res, w };
+      return { id: it._id, ans: Array.isArray(ans) ? ans.slice() : ans, ok: res.ok };
     });
-    const score = results.filter(r => r.res.ok).length;
-    S.mocks.push({ at: Date.now(), mode, score, total: items.length }); addXP(score * 5); save();
-    head.remove(); foot.innerHTML = ''; main.innerHTML = '';
-    $app.prepend(topbar(true));
-    const pct = Math.round(score / items.length * 100);
-    const verdict = mode === 'deck' ? (score >= 17 ? 'Ready.' : score >= 14 ? 'Close: redo the traps lessons (5.2, 5.3).' : 'Redo the drills of your weak parts, then try again.') : (pct >= 85 ? 'Strong result.' : pct >= 70 ? 'Good, now clear your Mistakes deck.' : 'Review your Mistakes deck, then retake.');
-    main.append(h('section', { class: 'card done-card' },
-      h('h1', {}, `${score} / ${items.length}`), h('p', { class: 'lead' }, (timeUp ? 'Time is up. ' : '') + verdict),
-      h('div', { class: 'done-stats' }, stat(pct + '%', 'score'), stat(items.length - score, 'to review'))),
-      h('h2', { class: 'section-t' }, 'Review every question'),
-      results.map((r, k) => {
-        r.w.lock(r.res);
-        return h('details', { class: 'review ' + (r.res.ok ? 'ok' : 'bad'), open: !r.res.ok || null },
-          h('summary', {}, ico(r.res.ok ? 'check' : 'x'), h('span', { html: `Q${k + 1}. ` + md(r.it.q || '') })),
-          h('div', { class: 'review-b' }, questionHead(r.it).slice(1), r.w.el, h('div', { class: 'fb-body' }, feedbackBody(r.it, r.res, r.ans)), r.it.trace && traceToggle(r.it.trace)));
-      }));
-    foot.append(h('div', { class: 'wrap lfoot-in' }, h('a', { class: 'btn ghost', href: '#/mistakes' }, 'Mistakes deck'), h('a', { class: 'btn primary', href: '#/mock' }, 'Done')));
-    window.scrollTo(0, 0);
+    const score = qs.filter(q => q.ok).length;
+    S.mocks.push({ at: Date.now(), mode, score, total: items.length, secs: Math.round((Date.now() - (end - limit * 1000)) / 1000), timeUp: !!timeUp, qs });
+    if (S.mocks.length > 50) S.mocks = S.mocks.slice(-50); // keep the last 50 attempts
+    addXP(score * 5); save();
+    location.hash = `#/mock/history/${S.mocks.length - 1}`; // the results page IS the saved attempt
   }
   show();
+}
+
+// ───────────────────────────── mock results + history ─────────────────────────────
+const MOCK_NAME = { deck: 'Deck mock exam', past: 'Past-paper exam', mixed: 'Mixed mock exam' };
+function mockResult(it, ans) {
+  const res = ans == null
+    ? { ok: false, gaveUp: true, unanswered: true, why: 'Not answered.', correctText: evaluate(it, it.t === 'mcq' ? -1 : it.t === 'fill' ? it.b.map(() => '') : '').correctText }
+    : evaluate(it, ans);
+  if (it.t === 'mcq') res.correctWhy = it.o[it.a][1];
+  return res;
+}
+function mockVerdict(m) {
+  const pct = Math.round(m.score / m.total * 100);
+  return m.mode === 'deck'
+    ? (m.score >= 17 ? 'Ready.' : m.score >= 14 ? 'Close: redo the traps lessons (5.2, 5.3).' : 'Redo the drills of your weak parts, then try again.')
+    : (pct >= 85 ? 'Strong result.' : pct >= 70 ? 'Good, now clear your Mistakes deck.' : 'Review your Mistakes deck, then retake.');
+}
+const fmtDur = s => s == null ? '–' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+function mockAttemptView(idx) {
+  const m = S.mocks[idx];
+  if (!m) { location.hash = '#/mock'; return; }
+  const pct = Math.round(m.score / m.total * 100);
+  const entries = (m.qs || []).map((q, k) => {
+    const item = Q[q.id] && Q[q.id].item;
+    return item ? { item, ans: q.ans, res: mockResult(item, q.ans), n: k + 1 } : null;
+  }).filter(Boolean);
+  const list = h('div', { class: 'attempt-list' });
+  let onlyWrong = false;
+  const draw = () => { list.replaceChildren(...entries.filter(e => !onlyWrong || !e.res.ok).map(e => recapRow(e))); };
+  const tabAll = h('button', { type: 'button', class: 'chip filt on', onclick: () => { onlyWrong = false; tabAll.classList.add('on'); tabWrong.classList.remove('on'); draw(); } }, `All (${entries.length})`);
+  const tabWrong = h('button', { type: 'button', class: 'chip filt', onclick: () => { onlyWrong = true; tabWrong.classList.add('on'); tabAll.classList.remove('on'); draw(); } }, `❌ Wrong (${entries.filter(e => !e.res.ok).length})`);
+  draw();
+  $app.append(topbar(true), h('main', { class: 'wrap page' },
+    h('a', { class: 'back-link', href: '#/mock' }, '‹ All exams & history'),
+    h('section', { class: 'card done-card' },
+      h('p', { class: 'eyebrow' }, `${MOCK_NAME[m.mode] || 'Mock exam'} · ${new Date(m.at).toLocaleString()}`),
+      h('h1', {}, `${m.score} / ${m.total}`), h('p', { class: 'lead' }, (m.timeUp ? 'Time was up. ' : '') + mockVerdict(m)),
+      h('div', { class: 'done-stats' }, stat(pct + '%', 'score'), stat(`✅ ${m.score}`, 'right'), stat(`❌ ${m.total - m.score}`, 'wrong or blank'), stat(fmtDur(m.secs), 'time taken'))),
+    m.qs ? h('section', { class: 'summary' },
+      h('div', { class: 'summary-head' }, h('h2', { class: 'section-t' }, 'What you answered'), h('div', { class: 'filters' }, tabAll, tabWrong)),
+      h('p', { class: 'muted small' }, 'Tap a question to see the code and the full explanation. Wrong answers are also in your Mistakes deck.'),
+      list)
+      : h('p', { class: 'muted' }, 'This attempt was taken before answers were saved, so only the score is available. Every exam from now on keeps the full question-by-question review.'),
+    h('div', { class: 'row' }, h('a', { class: 'btn primary', href: `#/mock/${m.mode}` }, 'Retake this exam'), h('a', { class: 'btn ghost', href: '#/mistakes' }, 'Mistakes deck'))));
 }
 function traceToggle(id) {
   const holder = h('div');

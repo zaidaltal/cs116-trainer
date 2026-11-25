@@ -382,3 +382,17 @@ button { font: inherit; color: inherit; }
 .card.lookback { border-style: dashed; border-color: var(--line-2); }
 .card.lookback .qtype { color: var(--muted); }
 .lb-count { flex: 1; text-align: center; }
+
+/* ── exam history + attempt review ── */
+.back-link { display: inline-block; margin-bottom: var(--s4); color: var(--accent); text-decoration: none; font: 600 .9rem var(--mono); }
+.filters { display: flex; gap: var(--s2); }
+.chip.filt { cursor: pointer; color: var(--ink-2); }
+.chip.filt.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.mlist.history li { padding: 0; }
+.hist-row { display: flex; align-items: center; gap: var(--s3); width: 100%; padding: var(--s3) var(--s4); color: var(--ink); text-decoration: none; }
+.hist-row:hover { background: var(--hover); }
+.hist-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.hist-score { font: 800 1.05rem var(--mono); }
+.hist-score small { font-weight: 500; color: var(--muted); }
+.hist-score.good { color: var(--ok); } .hist-score.mid { color: var(--warn); } .hist-score.low { color: var(--bad); }
+.hist-row .arrow { color: var(--accent); font-weight: 700; }
